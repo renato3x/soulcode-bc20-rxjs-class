@@ -9,7 +9,7 @@ $ npm i
 ou
 
 ```
-$ yarn add
+$ yarn
 ```
 
 Com os pacotes instalados, para executar o projeto, execute o comando
