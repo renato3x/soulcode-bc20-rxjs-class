@@ -1,7 +1,7 @@
-import fs from 'fs' // manipula os arquivos do sistema
+import fs, { read } from 'fs' // manipula os arquivos do sistema
 import path from 'path' // para gerar o caminho para os arquivos
 import chalk from 'chalk' // para colorir o console :)
-import { Observable } from 'rxjs'
+import { Observable, Subscriber } from 'rxjs'
 
 const isCSS = /.+\s*{\s*(.+:\s*.+;\s*)*}\s*/gmi // expressão regular para pegar arquivos CSS
 const isHTML = /^<!DOCTYPE html>/ig // expressão regular para pegar arquivos HTML
@@ -19,8 +19,86 @@ const files: string[] = [
   path.join(__dirname, 'texto4.txt'),
   path.join(__dirname, 'html4.html'),
   path.join(__dirname, 'css4.css'),
+  path.join(__dirname, 'css4.css'),
+  path.join(__dirname, 'js1.js'),
 ]
 
-function readFiles() {
+// receber o caminho dos arquivos que precisam ser lidos e retornados
+function readFiles(arquivos: string[]) {
+  const leitorDeArquivos$: Observable<string> = new Observable((subscriber: Subscriber<string>) => {
+    // 1° Estágio: Sucesso (next) -> Ele conseguiu enviar os dados com sucesso
+    // 2° Estágio: Erro (error) -> Algum problema ocorreu na execução do Observable
+    // 3° Estágio: Concluído (complete) -> Termina de enviar todos os dados do Observable
+
+    // 1° - Percorrer o array de arquivos e fazer a leitura deles
+    let i = 0
+
+    const idInterval = setInterval(() => {
+      if (i > arquivos.length - 1) {
+        /**
+         * quando a função complete for chamada, significa que o observables já te
+         * enviou todos os dados com sucesso e não há mais nada para enviar
+         */
+        subscriber.complete()
+
+        // clearInterval irá parar a execução do setInterval, evitando
+        // que ela seja infinito
+        clearInterval(idInterval)
+      } else {
+        try {
+          /**
+           * a função readFileSync do fs faz a leitura de um arquivo
+           * de maneira síncrona e retorna o conteúdo do arquivo como uma string
+           */
+          const arquivo = arquivos[i]
+          const conteudoArquivo = fs.readFileSync(arquivo, { encoding: 'utf-8' })
   
+          // a função é responsável por informar que ocorreu sucesso no observable
+          // enviando para os observadores
+          subscriber.next(conteudoArquivo)
+        } catch (error) {
+          /**
+           * O error é chamado quando acontece algum problema na fonte de dados
+           * Quando ele é chamado, a execução do Observable para automaticamente
+           */
+          subscriber.error(error)
+        }
+      }
+
+      i++
+    }, 1500)
+  })
+
+  return leitorDeArquivos$
 }
+
+const leitor$ = readFiles(files)
+
+/**
+ * No momento que a função subscribe é executada, eu estou
+ * falando para a fonte de dados que há um novo Observador
+ * daqueles dados, ou seja, mais um lugar que a stream de dados
+ * deve enviar esses dados
+ */
+
+/**
+ * 1° -> Sucesso (next)
+ * 2° -> Erro (error)
+ * 3° -> Concluído (complete)
+ */
+leitor$.subscribe(
+  // next
+  (conteudoArquivo) => {
+    console.log(chalk.green('Texto lido com sucesso!\n'))
+    console.log(conteudoArquivo + '\n')
+  },
+  // error
+  (erro) => {
+    console.log(chalk.red('Ocorreu um erro na execução\n'))
+    console.log(erro)
+  },
+  //complete
+  () => {
+    console.log(chalk.blue('Todos os arquivos foram lidos :)'))
+  }
+)
