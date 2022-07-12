@@ -1,7 +1,7 @@
 import fs, { read } from 'fs' // manipula os arquivos do sistema
 import path from 'path' // para gerar o caminho para os arquivos
 import chalk from 'chalk' // para colorir o console :)
-import { Observable, Subscriber } from 'rxjs'
+import { Observable, Subject, Subscriber } from 'rxjs'
 
 const isCSS = /.+\s*{\s*(.+:\s*.+;\s*)*}\s*/gmi // expressão regular para pegar arquivos CSS
 const isHTML = /^<!DOCTYPE html>/ig // expressão regular para pegar arquivos HTML
@@ -24,7 +24,7 @@ const files: string[] = [
 ]
 
 // receber o caminho dos arquivos que precisam ser lidos e retornados
-function readFiles(arquivos: string[]) {
+function readFiles(arquivos: string[], hot: boolean) {
   const leitorDeArquivos$: Observable<string> = new Observable((subscriber: Subscriber<string>) => {
     // 1° Estágio: Sucesso (next) -> Ele conseguiu enviar os dados com sucesso
     // 2° Estágio: Erro (error) -> Algum problema ocorreu na execução do Observable
@@ -66,13 +66,20 @@ function readFiles(arquivos: string[]) {
       }
 
       i++
-    }, 1500)
+    }, 2500)
   })
+
+  if (hot == true) {
+    const subLeitor$: Subject<string> = new Subject()
+    leitorDeArquivos$.subscribe(subLeitor$)
+
+    return subLeitor$
+  }
 
   return leitorDeArquivos$
 }
 
-const leitor$ = readFiles(files)
+const leitor$ = readFiles(files, true)
 
 /**
  * No momento que a função subscribe é executada, eu estou
@@ -89,7 +96,7 @@ const leitor$ = readFiles(files)
 leitor$.subscribe(
   // next
   (conteudoArquivo) => {
-    console.log(chalk.green('Texto lido com sucesso!\n'))
+    console.log(chalk.green('SUB 1 - Texto lido com sucesso!\n'))
     console.log(conteudoArquivo + '\n')
   },
   // error
@@ -102,3 +109,22 @@ leitor$.subscribe(
     console.log(chalk.blue('Todos os arquivos foram lidos :)'))
   }
 )
+
+setTimeout(() => {
+  leitor$.subscribe(
+    // next
+    (conteudoArquivo) => {
+      console.log(chalk.green('SUB 2 - Texto lido com sucesso!\n'))
+      console.log(conteudoArquivo + '\n')
+    },
+    // error
+    (erro) => {
+      console.log(chalk.red('Ocorreu um erro na execução\n'))
+      console.log(erro)
+    },
+    //complete
+    () => {
+      console.log(chalk.blue('Todos os arquivos foram lidos :)'))
+    }
+  )
+}, 10000)
